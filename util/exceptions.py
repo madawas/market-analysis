@@ -1,11 +1,14 @@
 class AuthenticationException(Exception):
     """
-    This exception is thrown when there is an issue with authenticating
-    with the data source
+    Raised when authentication error occurred when fetching data from the data source
     """
+    def __init__(self, message=None, *args):
+        super().__init__(message, args)
 
-    def __init__(self, msg):
-        self.msg = msg
 
-    def __str__(self):
-        return self.msg
+class DataSourceException(Exception):
+    """
+    Raised when error occurred while datasource operations are carried out
+    """
+    def __init__(self, message=None, *args):
+        super().__init__(message, args)

@@ -1,7 +1,10 @@
 import os
 import logging
 import requests
-from util.exceptions import AuthenticationException
+from requests import HTTPError
+
+from util.exceptions import DataSourceException
+from util.constants import DataSourceConstants
 
 logger = logging.getLogger(__name__)
 
@@ -12,82 +15,76 @@ class DataSource(object):
 
     :param config a dictionary containing configuration values
     :type config: dict
-        isLibrary: is the underlying data source a python library
-                        bool, default False, optional
-        isAuth: Is the data source authenticated. If :keyword True, token should be provided
-                        bool, default True, optional
-        retryCount
-        retryDelay
-        baseUrl: str, default None, required if is_lib is False
-            Base url of the data source API
-        version: str, default None, optional
-            Version of the API
-        token: str, optional
-            Authentication token for the data source
-        tokenEnv: str, default "DATASOURCE_TOKEN" (if token is None), optional
-            API token can be configured as an environment variable. In that instance,
-            the environment variable name can be passed using token_env attribute
-    :raises AuthenticationException if token is not provided for an authenticated data source
-    :rtype AuthenticationException
+    :raises DataSourceException if token is not provided for an authenticated data source
+    :rtype DataSourceException
     """
     def __init__(self, config):
-        self.is_lib = config.get("isLibrary", default=False)
-        self.is_auth = config.get("isAuthenticated", default=True)
+        try:
+            DataSource.__validate_config(config)
+        except (TypeError, ValueError) as e:
+            raise DataSourceException("Error occurred while validating the configuration to initialize the data source",
+                                      e)
+        else:
+            self.__name = config[DataSourceConstants.NAME]
+            self.__auth_token = config[DataSourceConstants.AUTH_TOKEN]
+            self.__base_url = config[DataSourceConstants.API_BASE_URL]
+            self.__config = config
 
-        if self.is_lib is False:
-            self.base_url = config.get("baseUrl")
-            self.version = config.get("version")
+    def _prepare_url(self, resource):
+        return "{}{}".format(self.__base_url, resource)
 
-        if self.is_auth is True:
-            self.token = config.get("authToken")
-            if self.token is None:
-                self.token = os.getenv(config.get("tokenEnv", default="DATASOURCE_TOKEN"))
+    def get_data(self, resource, params=None, headers=None):
+        """
+        Execute HTTP GET request for the given resource and fetch data
 
-            if not self.token or isinstance(self.token, str):
-                raise AuthenticationException("Authentication token is required to proceed with the data source")
-
-        self.retry_count = config.get("retryCount", default=3)
-        self.retry_delay = config.get("retryDelay", default=0.5)
-
-    @property
-    def base_url(self):
-        return self.base_url
-
-    @base_url.setter
-    def base_url(self, base_url):
-        self.base_url = base_url
-
-    @property
-    def token(self):
-        return self.token
-
-    @token.setter
-    def token(self, token):
-        self.token = token
-
-    def prepare_url(self, resource):
-        return "%s%s" % (self.base_url, resource)
-
-    def get_data(self, resource, params, headers):
+        :param resource: resource path
+        :param params: query parameters to append to the request
+        :param headers: HTTP headers to include to the request
+        :return: response data from the request
+        :rtype dict
         """
 
-
-        :param resource:
-        :param params:
-        :param headers:
-        :return:
-        """
         if params is None:
             params = {}
-        params["token"] = self.token
-        url = self.prepare_url(resource)
+        params["token"] = self.__auth_token
+        url = self._prepare_url(resource)
         response = requests.get(url=url, params=params, headers=headers)
-        logger.debug("REQUEST: %s" % response.request.url)
-        logger.debug("RESPONSE: %s" % response.status_code)
-        # TODO: properly handle error statuses
+        logger.debug("REQUEST: {}".format(response.request.url))
+        logger.debug("RESPONSE: {}".format(response.status_code))
         if response.status_code == requests.codes.ok:
             return response.json()
         else:
-            response.raise_for_status()
+            raise HTTPError("HTTP error occurred with status = {}, message = {}".format(response.status_code,
+                                                                                        response.text))
 
+    @staticmethod
+    def __validate_config(config):
+        """
+        Validating the configuration passed to initialize the data source
 
+        :param config: configuration dictionary
+        """
+        if not config or not isinstance(config, dict):
+            raise TypeError("Configuration object is empty or not a required type")
+
+        # Base URL is required when the data source is not a library
+        if not config.get(DataSourceConstants.IS_LIBRARY) and not config.get(DataSourceConstants.API_BASE_URL):
+            raise TypeError("Base Url is required when data source is not a library")
+
+        if not config.get(DataSourceConstants.TOKEN_ENV):
+            config[DataSourceConstants.TOKEN_ENV] = DataSourceConstants.DEFAULT_TOKEN_ENV
+
+        # Set authentication token from environment variable if auth token is not included in the config
+        if config.get(DataSourceConstants.IS_AUTHENTICATED) and not (
+                config.get(DataSourceConstants.AUTH_TOKEN) and
+                isinstance(config.get(DataSourceConstants.AUTH_TOKEN), str)):
+            config[DataSourceConstants.AUTH_TOKEN] = os.getenv(DataSourceConstants.TOKEN_ENV)
+
+        if config[DataSourceConstants.AUTH_TOKEN] is None:
+            raise ValueError("API Authentication token is empty")
+
+        if not config.get(DataSourceConstants.RETRY_COUNT):
+            config[DataSourceConstants.RETRY_COUNT] = 3
+
+        if not config.get(DataSourceConstants.RETRY_DELAY):
+            config[DataSourceConstants.RETRY_DELAY] = 0.5
