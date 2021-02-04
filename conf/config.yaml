@@ -1,0 +1,27 @@
+---
+datasources:
+  - name: "IEXCloud"
+    isLibrary: False
+    isAuthenticated: True
+    baseUrl:
+      sandbox: "https://sandbox.iexapis.com"
+      production: "https://cloud.iexapis.com"
+    authToken:
+      sandbox: "[SANDBOX_TOKEN]"
+      production: "[PRODUCTION_TOKEN]"
+    environment: "sandbox"
+    version: "stable"
+    resourceMapping:
+      summary: "/stock/{}/stats"
+  - name: "AlphaVantage"
+    isLibrary: False
+    isAuthenticated: True
+    baseUrl: "https://www.alphavantage.co/query"
+    authToken: "[AV_TOKEN]"
+    resourceMapping:
+      summary: "OVERVIEW"
+  - name: "YahooFinance"
+    isLibrary: True
+    isAuthenticated: False
+    resourseMapping:
+      summary: "get_quote_table"
