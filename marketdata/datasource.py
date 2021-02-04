@@ -15,10 +15,9 @@
 import logging
 
 import requests
-from requests import HTTPError
 
-from util.constants import DataSourceConstants
-from util.exceptions import DataSourceException
+from marketdata.util import DataSourceConstants
+from marketdata.exceptions import DataSourceException
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ class DataSource(object):
     def _prepare_url(self, resource, **kwargs):
         return "{}{}".format(self._base_url, resource)
 
-    def get_data(self, resource, params=None, headers=None):
+    def call_api(self, resource, params=None, headers=None):
         """
         Execute HTTP GET request for the given resource and fetch data
 
@@ -64,18 +63,10 @@ class DataSource(object):
         :param params: query parameters to append to the request
         :param headers: HTTP headers to include to the request
         :return: response data from the request
-        :rtype dict
+        :rtype request.response
         """
         url = self._prepare_url(resource)
-        response = requests.get(url=url, params=params, headers=headers)
-        logger.debug("REQUEST: {}".format(response.request.url))
-        logger.debug("RESPONSE: {}".format(response.status_code))
-        if response.status_code == requests.codes.ok:
-            logger.debug(response.text)
-            return response.json()
-        else:
-            raise HTTPError("HTTP error occurred with status = {}, message = {}".format(response.status_code,
-                                                                                        response.text))
+        return requests.get(url=url, params=params, headers=headers)
 
     def _validate_config(self, config):
         """
@@ -149,11 +140,11 @@ class IEXCloud(DataSource):
         version = kwargs.get(DataSourceConstants.API_VERSION, self.__version)
         return "{}/{}{}".format(self._base_url[env], version, resource)
 
-    def get_data(self, resource, params=None, headers=None):
+    def call_api(self, resource, params=None, headers=None):
         if params is None:
             params = {}
         params["token"] = self._auth_token
-        return super().get_data(resource, params, headers)
+        return super().call_api(resource, params, headers)
 
 
 class AlphaVantage(DataSource):
@@ -163,12 +154,8 @@ class AlphaVantage(DataSource):
     def _prepare_url(self, resource, **kwargs):
         return super()._prepare_url(resource)
 
-    def get_data(self, resource, params=None, headers=None):
+    def call_api(self, resource, params=None, headers=None):
         if params is None or not (params.get("function") and params.get("symbol")):
             raise ValueError("Parameters: function and symbol is required")
         params["apikey"] = self._auth_token
-        return super().get_data("", params, headers)
-
-
-class YahooFinance(DataSource):
-    pass
+        return super().call_api("", params, headers)
