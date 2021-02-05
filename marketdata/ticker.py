@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datasource as ds
+
 
 class Ticker:
 
-    __DEFAULT_FALLBACK_DATASOURCE = "yahoo"
+    __DEFAULT_FALLBACK_DATASOURCE = "YahooFinance"
 
     def __init__(self, symbol, exchange, datasource, fallback_datasource=None):
         self.__symbol = symbol
@@ -24,11 +26,10 @@ class Ticker:
         if not datasource:
             raise ValueError("Missing required argument: datasource")
         else:
-            self.__datasource = datasource
+            self.__datasource = ds.create_datasource(datasource)
 
         if not fallback_datasource:
-            self.__fallback_datasource = Ticker.__DEFAULT_FALLBACK_DATASOURCE
-
+            self.__fallback_datasource = ds.create_datasource(Ticker.__DEFAULT_FALLBACK_DATASOURCE)
 
     @property
     def datasource(self):

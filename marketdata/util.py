@@ -15,14 +15,24 @@
 import yaml
 
 
-def read_config():
-    with open("conf/config.yaml") as conf:
-        config = yaml.load(conf, Loader=yaml.FullLoader)
-        print(config)
+def read_app_config():
+    with open("conf/config.yaml") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
     return config
 
 
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
 class DataSourceConstants(object):
+
+    DATASOURCES_PARENT: str = "datasources"
 
     NAME: str = "name"
 
