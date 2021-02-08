@@ -1,4 +1,6 @@
 ---
+defaultDataSource: "IEXCloud"
+defaultFallbackDatasource: "YahooFinance"
 datasources:
   - name: "IEXCloud"
     isLibrary: False
@@ -7,8 +9,8 @@ datasources:
       sandbox: "https://sandbox.iexapis.com"
       production: "https://cloud.iexapis.com"
     authToken:
-      sandbox: "[SANDBOX_TOKEN]"
-      production: "[PRODUCTION_TOKEN]"
+      sandbox: "IEX_SANDBOX_TOKEN"
+      production: "IEX_PROD_TOKEN"
     environment: "sandbox"
     version: "stable"
     resourceMapping:
@@ -17,11 +19,11 @@ datasources:
     isLibrary: False
     isAuthenticated: True
     baseUrl: "https://www.alphavantage.co/query"
-    authToken: "[AV_TOKEN]"
+    authToken: "AV_TOKEN"
     resourceMapping:
       summary: "OVERVIEW"
   - name: "YahooFinance"
     isLibrary: True
     isAuthenticated: False
-    resourseMapping:
+    resourceMapping:
       summary: "get_quote_table"

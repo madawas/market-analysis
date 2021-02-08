@@ -15,20 +15,39 @@
 import logging
 import requests
 
+from yahoo_fin import stock_info as yf
+
 from . import util
 from .exceptions import DataSourceException
 
-Const = util.DataSourceConstants
+DC = util.DataSourceConstants
+CC = util.CommonConstants
 
 logger = logging.getLogger(__name__)
 
-CONFIG = util.read_app_config()
-DATA_SOURCES = CONFIG[Const.DATASOURCES_PARENT]
+__DATA_SOURCES = util.read_app_config()[DC.DATA_SOURCES_PARENT]
 
 
 def create_datasource(name):
-    config = next(filter(lambda x: x['name'] == name,  DATA_SOURCES), None)
-    return globals()[name](config)
+    """
+    Create data source instance of the given data source name.
+
+    The function attempts to find the data source config from the config file and creates an instance
+    by passing the config to create the instance
+
+    :param name: data source name
+    :return: data source instance
+    :type: DataSource
+    """
+    config = next(filter(lambda x: x['name'] == name, __DATA_SOURCES), None)
+
+    if not config:
+        return ValueError("Unable to find a configuration to a datasource with name: {}".format(name))
+
+    if not globals()[name]:
+        return DataSource(config)
+    else:
+        return globals()[name](config)
 
 
 class DataSource(object, metaclass=util.Singleton):
@@ -47,9 +66,10 @@ class DataSource(object, metaclass=util.Singleton):
             raise DataSourceException("Error occurred while validating the configuration to initialize the data source",
                                       e)
         else:
-            self.__name = config.get(Const.NAME)
-            self._auth_token = config.get(Const.AUTH_TOKEN)
-            self._base_url = config.get(Const.API_BASE_URL)
+            self.__name = config.get(DC.NAME)
+            self._auth_token = config.get(DC.AUTH_TOKEN)
+            self._base_url = config.get(DC.API_BASE_URL)
+            self._resource_mapping = config.get(DC.RESOURCES_MAPPING)
             self._config = config
 
     @property
@@ -63,7 +83,7 @@ class DataSource(object, metaclass=util.Singleton):
     def _prepare_url(self, resource, **kwargs):
         return "{}{}".format(self._base_url, resource)
 
-    def call_api(self, resource, params=None, headers=None):
+    def _call_api(self, resource, params=None, headers=None, **kwargs):
         """
         Execute HTTP GET request for the given resource and fetch data
 
@@ -73,8 +93,11 @@ class DataSource(object, metaclass=util.Singleton):
         :return: response data from the request
         :rtype request.response
         """
-        url = self._prepare_url(resource)
+        url = self._prepare_url(resource, **kwargs)
         return requests.get(url=url, params=params, headers=headers)
+
+    def call_api(self, function, symbol, **kwargs):
+        pass
 
     def _validate_config(self, config):
         """
@@ -88,16 +111,13 @@ class DataSource(object, metaclass=util.Singleton):
             raise TypeError("Configuration object is empty or not a required type")
 
         # Base URL is required when the data source is not a library
-        if not config.get(Const.IS_LIBRARY) and not config.get(Const.API_BASE_URL):
+        if not config.get(DC.IS_LIBRARY) and not config.get(DC.API_BASE_URL):
             raise TypeError("Base Url is required when data source is not a library")
 
-        if not config.get(Const.TOKEN_ENV_VARIABLE):
-            config[Const.TOKEN_ENV_VARIABLE] = Const.DEFAULT_TOKEN_ENV
-
         # Set authentication token from environment variable if auth token is not included in the config
-        if config.get(Const.IS_AUTHENTICATED) and not (
-                config.get(Const.AUTH_TOKEN) and
-                isinstance(config.get(Const.AUTH_TOKEN), str)):
+        if config.get(DC.IS_AUTHENTICATED) and not (
+                config.get(DC.AUTH_TOKEN) and
+                isinstance(config.get(DC.AUTH_TOKEN), str)):
             raise ValueError("API Authentication token is a required field and is missing in configuration")
 
 
@@ -115,8 +135,8 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
         if not config:
             config = util.read_app_config()
         super().__init__(config)
-        self.__version = config.get(Const.API_VERSION)
-        self.__default_env = config[Const.API_ENVIRONMENT]
+        self.__version = config.get(DC.API_VERSION)
+        self.__default_env = config[DC.API_ENVIRONMENT]
 
     def _validate_config(self, config):
         """
@@ -129,47 +149,89 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
         if not config or not isinstance(config, dict):
             raise TypeError("Configuration object is empty or not a required type")
 
-        if not config.get(Const.API_BASE_URL) and isinstance(config.get(
-                Const.API_BASE_URL), dict):
+        if not config.get(DC.API_BASE_URL) and isinstance(config.get(
+                DC.API_BASE_URL), dict):
             raise TypeError("IEX Cloud API base url is required and should be a dict")
 
-        if not config.get(Const.AUTH_TOKEN):
+        if not config.get(DC.AUTH_TOKEN):
             raise ValueError("Authentication token is required to connect with IEX Cloud API")
 
-        if not config.get(Const.API_ENVIRONMENT) or config.get(Const.API_ENVIRONMENT) not\
+        if not config.get(DC.API_ENVIRONMENT) or config.get(DC.API_ENVIRONMENT) not\
                 in IEXCloud.__IEX_ENVIRONMENTS:
             logger.warning("Provided environment {} is invalid. Default environment {} will be used".format(
-                config.get(Const.API_ENVIRONMENT), IEXCloud.__IEX_ENVIRONMENTS[0]))
-            config[Const.API_ENVIRONMENT] = IEXCloud.__IEX_ENVIRONMENTS[0]
+                config.get(DC.API_ENVIRONMENT), IEXCloud.__IEX_ENVIRONMENTS[0]))
+            config[DC.API_ENVIRONMENT] = IEXCloud.__IEX_ENVIRONMENTS[0]
 
-        if not config.get(Const.API_VERSION):
-            config[Const.API_VERSION] = IEXCloud.__IEX_VALID_VERSIONS[0]
+        if not config.get(DC.API_VERSION):
+            config[DC.API_VERSION] = IEXCloud.__IEX_VALID_VERSIONS[0]
 
     def _prepare_url(self, resource, **kwargs):
-        env = kwargs.get(Const.API_ENVIRONMENT, self.__default_env)
-        version = kwargs.get(Const.API_VERSION, self.__version)
+        env = kwargs.get(DC.API_ENVIRONMENT, self.__default_env)
+        version = kwargs.get(DC.API_VERSION, self.__version)
         return "{}/{}{}".format(self._base_url[env], version, resource)
 
-    def call_api(self, resource, params=None, headers=None):
-        if params is None:
-            params = {}
-        params["token"] = self._auth_token
-        return super().call_api(resource, params, headers)
+    def call_api(self, function, symbol, **kwargs):
+        if function is None or symbol is None:
+            return ValueError("Symbol and Function are required parameters")
+        else:
+            params = kwargs.get(CC.PARAMS, None)
+            headers = kwargs.get(CC.HEADERS, None)
+            token = kwargs.get(CC.TOKEN, None)
+            env = kwargs.get(DC.API_ENVIRONMENT, self.__default_env)
+
+            params = {} if params is None else params
+
+            if token is not None:
+                params[CC.TOKEN] = token
+            else:
+                params[CC.TOKEN] = self._auth_token[env]
+
+            resource = self._resource_mapping[function].format(symbol)
+            return self._call_api(resource, params, headers, **kwargs)
 
 
 class AlphaVantage(DataSource, metaclass=util.Singleton):
+
+    __apikey: str = "apikey"
+    __function: str = "function"
+
     def __init__(self, config):
         super().__init__(config)
 
     def _prepare_url(self, resource, **kwargs):
-        return super()._prepare_url(resource)
+        return super()._prepare_url(resource, **kwargs)
 
-    def call_api(self, resource, params=None, headers=None):
-        if params is None or not (params.get("function") and params.get("symbol")):
-            raise ValueError("Parameters: function and symbol is required")
-        params["apikey"] = self._auth_token
-        return super().call_api("", params, headers)
+    def call_api(self, function, symbol, **kwargs):
+        if function is None or symbol is None:
+            return ValueError("Symbol and Function are required parameters")
+        else:
+            params = kwargs.get(CC.PARAMS, None)
+            token = kwargs.get(AlphaVantage.__apikey)
+
+            params = {} if not params else params
+
+            params[AlphaVantage.__function] = self._resource_mapping[function],
+            params[CC.SYMBOL] = symbol
+
+            if token is not None:
+                params[AlphaVantage.__apikey] = token
+            else:
+                params[AlphaVantage.__apikey] = self._auth_token
+
+            return self._call_api("", params, kwargs.get(CC.HEADERS, None), **kwargs)
 
 
 class YahooFinance(DataSource):
-    pass
+
+    def __init__(self, config):
+        super().__init__(config)
+
+    def _call_api(self, resource, params=None, headers=None, **kwargs):
+        function = self._resource_mapping[resource]
+        return getattr(yf, function)(params[CC.SYMBOL])
+
+    def call_api(self, function, symbol, **kwargs):
+        if function is None or symbol is None:
+            return ValueError("Symbol and Function are required parameters")
+        else:
+            return self._call_api(function, params={CC.SYMBOL: symbol}, headers=None, **kwargs)

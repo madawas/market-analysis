@@ -14,11 +14,27 @@
 
 import yaml
 
+__APP_CONFIG = None
+
 
 def read_app_config():
-    with open("conf/config.yaml") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    return config
+    """
+    Read the app config from the config location
+
+    todo: handle the config location and exception
+
+    :return: config dictionary
+    :rtype: dict
+    """
+    global __APP_CONFIG
+    if not __APP_CONFIG:
+        try:
+            with open("conf/config.yaml") as f:
+                __APP_CONFIG = yaml.load(f, Loader=yaml.FullLoader)
+        except IOError:
+            pass
+
+    return __APP_CONFIG
 
 
 class Singleton(type):
@@ -32,7 +48,9 @@ class Singleton(type):
 
 class DataSourceConstants(object):
 
-    DATASOURCES_PARENT: str = "datasources"
+    DATA_SOURCES_PARENT: str = "datasources"
+
+    RESOURCES_MAPPING: str = "resourceMapping"
 
     NAME: str = "name"
 
@@ -48,6 +66,19 @@ class DataSourceConstants(object):
 
     AUTH_TOKEN: str = "authToken"
 
-    TOKEN_ENV_VARIABLE: str = "authTokenEnv"
+    DEFAULT_DATASOURCE: str = "defaultDataSource"
 
-    DEFAULT_TOKEN_ENV: str = "DATASOURCE_TOKEN"
+    DEFAULT_FALLBACK_DATASOURCE: str = "defaultFallbackDatasource"
+
+
+class CommonConstants(object):
+
+    PARAMS: str = "params"
+
+    HEADERS: str = "headers"
+
+    STOCK_SUMMARY: str = "summary"
+
+    TOKEN: str = "token"
+
+    SYMBOL: str = "symbol"
