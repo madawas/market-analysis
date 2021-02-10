@@ -83,6 +83,16 @@ class Ticker:
         return self.__handle_request(local_ds, CC.STOCK_SUMMARY, **args_dict)
 
     def __handle_request(self, datasource, function, **kwargs):
+        """
+        Handles the request to fetch data
+
+        :param datasource: overrides the data source specified when creating the :Ticker instance. [optional]
+        :type datasource: :py:class:datasource.DataSource
+        :param function: function/endpoint/data to retrieve. E.g. summary, balance_sheet
+        :type function: str
+        :param kwargs: any other data source related parameters
+        :return:
+        """
         try:
             response = datasource.call_api(function, self.symbol, **kwargs)
         except requests.exceptions.RequestException as e:
@@ -93,13 +103,22 @@ class Ticker:
         if isinstance(response, requests.models.Response):
             is_fallback, data = Ticker.__is_fallback(datasource, response)
             if is_fallback:
-                data = self.__handle_fallback_request(function, **kwargs)
+                return self.__handle_fallback_request(function, **kwargs)
             elif isinstance(data, str):
                 raise MarketDataException(data)
             elif isinstance(data, dict):
                 return data
 
     def __handle_fallback_request(self, function, **kwargs):
+        """
+        Retries to fetch the data again using the fall back data source
+
+        :param function: function/endpoint/data to retrieve. E.g. summary, balance_sheet
+        :type str
+        :param kwargs: any other data source related parameters
+        :return:
+        :raises MarketDataException when error occurred while trying to fetch data through fallback datasource
+        """
         datasource = Ticker.__create_datasource(self.__fallback_datasource)
         try:
             return datasource.call_api(function, self.symbol, **kwargs)
@@ -108,6 +127,13 @@ class Ticker:
 
     @staticmethod
     def __is_fallback(datasource, response):
+        """
+        Decides whether the response is correct and if not whether should try again using the fallback data source
+
+        :param datasource: current datasource
+        :param response: received response
+        :return: :bool of whether to try again and data
+        """
         if response.status_code is requests.codes.ok:
             return False, response.json()
         else:
