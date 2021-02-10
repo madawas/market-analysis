@@ -13,31 +13,32 @@
 # limitations under the License.
 
 import logging
+import requests
 
 from . import util
 from . import datasource as ds
+from .exceptions import MarketDataException
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
-DSConst = util.DataSourceConstants
-TickConst = util.CommonConstants
+DC = util.DataSourceConstants
+CC = util.CommonConstants
 
 
 class Ticker:
-
     _CONFIG = util.read_app_config()
 
     def __init__(self, symbol, datasource, fallback_datasource=None):
         self.__symbol = symbol
 
         if not datasource:
-            logger.warning("datasource parameter is empty. Setting the default datasource specified in the config")
-            self.__datasource = Ticker.__create_datasource(Ticker._CONFIG.get(DSConst.DEFAULT_DATASOURCE))
+            log.warning("datasource parameter is empty. Setting the default datasource specified in the config")
+            self.__datasource = Ticker.__create_datasource(Ticker._CONFIG.get(DC.DEFAULT_DATASOURCE))
         else:
             self.__datasource = Ticker.__create_datasource(datasource)
 
         if not fallback_datasource:
-            self.__fallback_datasource = Ticker.__create_datasource(Ticker._CONFIG[DSConst.DEFAULT_FALLBACK_DATASOURCE])
+            self.__fallback_datasource = Ticker.__create_datasource(Ticker._CONFIG[DC.DEFAULT_FALLBACK_DATASOURCE])
 
     @property
     def datasource(self):
@@ -71,20 +72,54 @@ class Ticker:
         local_ds = self.__datasource if datasource is None else Ticker.__create_datasource(datasource)
 
         if environment is not None:
-            args_dict[DSConst.API_ENVIRONMENT] = environment
+            args_dict[DC.API_ENVIRONMENT] = environment
 
         if version is not None:
-            args_dict[DSConst.API_VERSION] = version
+            args_dict[DC.API_VERSION] = version
 
         if token is not None:
-            args_dict["token"] = token
+            args_dict[CC.TOKEN] = token
 
-        if args_dict is not None:
-            response = local_ds.call_api(TickConst.STOCK_SUMMARY, self.symbol, **args_dict)
+        return self.__handle_request(local_ds, CC.STOCK_SUMMARY, **args_dict)
+
+    def __handle_request(self, datasource, function, **kwargs):
+        try:
+            response = datasource.call_api(function, self.symbol, **kwargs)
+        except requests.exceptions.RequestException as e:
+            log.error("Error occurred while attempting to fetch data. HTTP Status = {}, Message = {}".format(
+                e.response.status_code, e.response.text))
+            response = self.__handle_fallback_request(function, **kwargs)
+
+        if isinstance(response, requests.models.Response):
+            is_fallback, data = Ticker.__is_fallback(datasource, response)
+            if is_fallback:
+                data = self.__handle_fallback_request(function, **kwargs)
+            elif isinstance(data, str):
+                raise MarketDataException(data)
+            elif isinstance(data, dict):
+                return data
+
+    def __handle_fallback_request(self, function, **kwargs):
+        datasource = Ticker.__create_datasource(self.__fallback_datasource)
+        try:
+            return datasource.call_api(function, self.symbol, **kwargs)
+        except IOError as e:
+            raise MarketDataException("Error occurred while fetching data", e)
+
+    @staticmethod
+    def __is_fallback(datasource, response):
+        if response.status_code is requests.codes.ok:
+            return False, response.json()
         else:
-            response = local_ds.call_api(TickConst.STOCK_SUMMARY, self.symbol)
-        # todo: format response/send to fall back data source when error
-        return response
+            if datasource.is_fallback_code(response):
+                log.warning("Response returned with status: {}, msg: {} and retrying again with fallback data source"
+                            .format(response.status_code, response.text))
+                return True, None
+            else:
+                msg = "Error occurred while retrieving data: HTTP Status = {}, Message = {}".format(
+                    response.status_code, response.text)
+                log.error(msg)
+                return False, msg
 
     @staticmethod
     def __create_datasource(datasource):

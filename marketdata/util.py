@@ -70,6 +70,8 @@ class DataSourceConstants(object):
 
     DEFAULT_FALLBACK_DATASOURCE: str = "defaultFallbackDatasource"
 
+    HTTP_FALLBACK_CODE_LIST: str = "httpFallbackCodes"
+
 
 class CommonConstants(object):
 

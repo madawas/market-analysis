@@ -23,7 +23,7 @@ from .exceptions import DataSourceException
 DC = util.DataSourceConstants
 CC = util.CommonConstants
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 __DATA_SOURCES = util.read_app_config()[DC.DATA_SOURCES_PARENT]
 
@@ -97,7 +97,14 @@ class DataSource(object, metaclass=util.Singleton):
         return requests.get(url=url, params=params, headers=headers)
 
     def call_api(self, function, symbol, **kwargs):
-        pass
+        resource = self._resource_mapping[function].format(symbol)
+        return self._call_api(resource, kwargs.get(CC.PARAMS, None), kwargs.get(CC.HEADERS, None), **kwargs)
+
+    def is_fallback_code(self, response):
+        if response.status_code in self._config[DC.HTTP_FALLBACK_CODE_LIST]:
+            return True
+        else:
+            return False
 
     def _validate_config(self, config):
         """
@@ -158,7 +165,7 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
 
         if not config.get(DC.API_ENVIRONMENT) or config.get(DC.API_ENVIRONMENT) not\
                 in IEXCloud.__IEX_ENVIRONMENTS:
-            logger.warning("Provided environment {} is invalid. Default environment {} will be used".format(
+            log.warning("Provided environment {} is invalid. Default environment {} will be used".format(
                 config.get(DC.API_ENVIRONMENT), IEXCloud.__IEX_ENVIRONMENTS[0]))
             config[DC.API_ENVIRONMENT] = IEXCloud.__IEX_ENVIRONMENTS[0]
 

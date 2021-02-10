@@ -12,17 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class AuthenticationException(Exception):
+class DataSourceException(Exception):
     """
-    Raised when authentication error occurred when fetching data from the data source
+    Raised when error occurred while datasource operations are carried out
     """
     def __init__(self, message=None, *args):
         super().__init__(message, args)
 
 
-class DataSourceException(Exception):
-    """
-    Raised when error occurred while datasource operations are carried out
-    """
+class MarketDataException(Exception):
     def __init__(self, message=None, *args):
         super().__init__(message, args)

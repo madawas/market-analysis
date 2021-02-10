@@ -15,6 +15,14 @@ datasources:
     version: "stable"
     resourceMapping:
       summary: "/stock/{}/stats"
+    httpFallbackCodes:
+      - 401
+      - 402
+      - 403
+      - 404
+      - 429
+      - 451
+      - 500
   - name: "AlphaVantage"
     isLibrary: False
     isAuthenticated: True
