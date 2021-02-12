@@ -119,9 +119,8 @@ class Ticker:
         :return:
         :raises MarketDataException when error occurred while trying to fetch data through fallback datasource
         """
-        datasource = Ticker.__create_datasource(self.__fallback_datasource)
         try:
-            return datasource.call_api(function, self.symbol, **kwargs)
+            return self.__fallback_datasource.call_api(function, self.symbol, **kwargs)
         except IOError as e:
             raise MarketDataException("Error occurred while fetching data", e)
 

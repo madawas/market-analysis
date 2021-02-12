@@ -17,7 +17,7 @@ import yaml
 __APP_CONFIG = None
 
 
-def read_app_config():
+def read_app_config(path=None):
     """
     Read the app config from the config location
 
@@ -27,13 +27,17 @@ def read_app_config():
     :rtype: dict
     """
     global __APP_CONFIG
+
+    if not path:
+        path = "conf/config.yaml"
+
     if not __APP_CONFIG:
         try:
-            with open("conf/config.yaml") as f:
+            with open(path) as f:
                 __APP_CONFIG = yaml.load(f, Loader=yaml.FullLoader)
         except IOError:
+            # raise SystemExit("Unable to load configuration")
             pass
-
     return __APP_CONFIG
 
 

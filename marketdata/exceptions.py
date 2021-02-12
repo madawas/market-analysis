@@ -16,10 +16,14 @@ class DataSourceException(Exception):
     """
     Raised when error occurred while datasource operations are carried out
     """
-    def __init__(self, message=None, *args):
+    def __init__(self, message, *args):
+        self.__message = message
         super().__init__(message, args)
+
+    def __str__(self):
+        return self.__message
 
 
 class MarketDataException(Exception):
-    def __init__(self, message=None, *args):
+    def __init__(self, message, *args):
         super().__init__(message, args)

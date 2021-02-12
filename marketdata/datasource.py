@@ -25,8 +25,6 @@ CC = util.CommonConstants
 
 log = logging.getLogger(__name__)
 
-__DATA_SOURCES = util.read_app_config()[DC.DATA_SOURCES_PARENT]
-
 
 def create_datasource(name):
     """
@@ -39,18 +37,24 @@ def create_datasource(name):
     :return: data source instance
     :type: DataSource
     """
-    config = next(filter(lambda x: x['name'] == name, __DATA_SOURCES), None)
+    config = util.read_app_config()
+    if isinstance(config, dict):
+        datasource_list = config[DC.DATA_SOURCES_PARENT]
+    else:
+        raise TypeError("config is not a dict")
+    config = next(filter(lambda x: x['name'] == name, datasource_list), None)
 
     if not config:
         return ValueError("Unable to find a configuration to a datasource with name: {}".format(name))
 
-    if not globals()[name]:
-        return DataSource(config)
-    else:
+    try:
+        # Check if a class from the given name exists and create an object from that
         return globals()[name](config)
+    except KeyError:
+        return DataSource(config)
 
 
-class DataSource(object, metaclass=util.Singleton):
+class DataSource(object):
     """
     Abstract datasource class for retrieving market data using data providers.
 

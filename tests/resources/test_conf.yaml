@@ -1,0 +1,24 @@
+---
+defaultDataSource: "IEXCloud"
+defaultFallbackDatasource: "YahooFinance"
+datasources:
+  - name: "SampleDataSource1"
+    isLibrary: False
+    isAuthenticated: True
+    baseUrl: "https://generic.com"
+    authToken: "GfjMfAwEnYOkpTa0Q8T1zvNcoyoOGf9C"
+  - name: "SampleDataSource2"
+    isLibrary: True
+    isAuthenticated: False
+  - name: "SampleDataSource3"
+    isLibrary: False
+    isAuthenticated: False
+    baseUrl: "https://generic3.com"
+    authToken: "RU0tUAws7z2uyFOFkB8I1LkWm7HlEpiH"
+  - name: "GenericDataSourceError1"
+    isLibrary: False
+    isAuthenticated: True
+    authToken: "lXJjmz9UfHTTaQnHpgmncqHuFvH43vGx"
+  - name: "GenericDataSourceError2"
+    isLibrary: False
+    isAuthenticated: True
