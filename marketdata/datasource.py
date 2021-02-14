@@ -45,7 +45,7 @@ def create_datasource(name):
     config = next(filter(lambda x: x['name'] == name, datasource_list), None)
 
     if not config:
-        return ValueError("Unable to find a configuration to a datasource with name: {}".format(name))
+        return ValueError(f"Unable to find a configuration to a datasource with name: {name}")
 
     try:
         # Check if a class from the given name exists and create an object from that
@@ -85,7 +85,7 @@ class DataSource(object):
         self.__name = name
 
     def _prepare_url(self, resource, **kwargs):
-        return "{}{}".format(self._base_url, resource)
+        return f"{self._base_url}{resource}"
 
     def _call_api(self, resource, params=None, headers=None, **kwargs):
         """
@@ -169,8 +169,8 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
 
         if not config.get(DC.API_ENVIRONMENT) or config.get(DC.API_ENVIRONMENT) not\
                 in IEXCloud.__IEX_ENVIRONMENTS:
-            log.warning("Provided environment {} is invalid. Default environment {} will be used".format(
-                config.get(DC.API_ENVIRONMENT), IEXCloud.__IEX_ENVIRONMENTS[0]))
+            log.warning(f"Provided environment {DC.API_ENVIRONMENT} is invalid. Default environment "
+                        f"{IEXCloud.__IEX_ENVIRONMENTS[0]} will be used")
             config[DC.API_ENVIRONMENT] = IEXCloud.__IEX_ENVIRONMENTS[0]
 
         if not config.get(DC.API_VERSION):
@@ -179,7 +179,7 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
     def _prepare_url(self, resource, **kwargs):
         env = kwargs.get(DC.API_ENVIRONMENT, self.__default_env)
         version = kwargs.get(DC.API_VERSION, self.__version)
-        return "{}/{}{}".format(self._base_url[env], version, resource)
+        return f"{self._base_url[env]}/{version}{resource}"
 
     def call_api(self, function, symbol, **kwargs):
         if function is None or symbol is None:

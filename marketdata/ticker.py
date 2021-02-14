@@ -96,8 +96,8 @@ class Ticker:
         try:
             response = datasource.call_api(function, self.symbol, **kwargs)
         except requests.exceptions.RequestException as e:
-            log.error("Error occurred while attempting to fetch data. HTTP Status = {}, Message = {}".format(
-                e.response.status_code, e.response.text))
+            log.error(f"Error occurred while attempting to fetch data. HTTP Status = {e.response.status_code},"
+                      f"Message = {e.response.text}")
             response = self.__handle_fallback_request(function, **kwargs)
 
         if isinstance(response, requests.models.Response):
@@ -137,12 +137,12 @@ class Ticker:
             return False, response.json()
         else:
             if datasource.is_fallback_code(response):
-                log.warning("Response returned with status: {}, msg: {} and retrying again with fallback data source"
-                            .format(response.status_code, response.text))
+                log.warning(f"Response returned with status: {response.status_code}, msg: {response.text} and "
+                            f"retrying again with fallback data source")
                 return True, None
             else:
-                msg = "Error occurred while retrieving data: HTTP Status = {}, Message = {}".format(
-                    response.status_code, response.text)
+                msg = f"Error occurred while retrieving data: HTTP Status = {response.status_code}, Message = " \
+                      f"{response.text}"
                 log.error(msg)
                 return False, msg
 
