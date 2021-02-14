@@ -12,33 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
+
 import yaml
 
 __APP_CONFIG = None
 
 
-def read_app_config(path=None):
+def read_app_config(path: str = None, override_config: bool = True):
     """
     Read the app config from the config location
 
-    todo: handle the config location and exception
-
+    :param path: absolute path or relative path from current working directory to the config file
+    :param override_config: whether to override the global app config
     :return: config dictionary
     :rtype: dict
     """
     global __APP_CONFIG
 
-    if not path:
-        path = "conf/config.yaml"
+    if not path or not Path(path).exists():
+        path = Path(__file__).resolve().parent.joinpath('conf', 'config.yaml').resolve()
 
-    if not __APP_CONFIG:
-        try:
-            with open(path) as f:
-                __APP_CONFIG = yaml.load(f, Loader=yaml.FullLoader)
-        except IOError:
-            # raise SystemExit("Unable to load configuration")
-            pass
-    return __APP_CONFIG
+    with open(path) as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+
+    if override_config:
+        __APP_CONFIG = config
+
+    return config
 
 
 class Singleton(type):
