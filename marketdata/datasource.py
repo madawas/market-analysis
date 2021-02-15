@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import logging
 import requests
 
@@ -37,7 +38,7 @@ def create_datasource(name):
     :return: data source instance
     :type: DataSource
     """
-    config = util.read_app_config()
+    config = util.read_app_config(override_config=False)
     if isinstance(config, dict):
         datasource_list = config[DC.DATA_SOURCES_PARENT]
     else:
@@ -63,12 +64,12 @@ class DataSource(object):
     :raises DataSourceException if token is not provided for an authenticated data source
     :rtype DataSourceException
     """
+
     def __init__(self, config: dict):
         try:
             self._validate_config(config)
         except (TypeError, ValueError) as e:
-            raise DataSourceException("Error occurred while validating the configuration to initialize the data source",
-                                      e)
+            raise DataSourceException(f"Configuration validation failed with error: [{e}]")
         else:
             self.__name = config.get(DC.NAME)
             self._auth_token = config.get(DC.AUTH_TOKEN)
@@ -85,26 +86,46 @@ class DataSource(object):
         self.__name = name
 
     def _prepare_url(self, resource, **kwargs):
-        return f"{self._base_url}{resource}"
+        """
+        Combines the base url and resource to generate the complete URI of the resource to access
+
+        :param resource: resource to access
+        :param kwargs: additional parameters
+        :return: url to call
+        """
+        return f"{self._base_url}/{resource}"
 
     def _call_api(self, resource, params=None, headers=None, **kwargs):
         """
-        Execute HTTP GET request for the given resource and fetch data
+        Executes HTTP GET request for the given resource and fetch data
 
         :param resource: resource path
         :param params: query parameters to append to the request
         :param headers: HTTP headers to include to the request
         :return: response data from the request
-        :rtype request.response
         """
         url = self._prepare_url(resource, **kwargs)
         return requests.get(url=url, params=params, headers=headers)
 
     def call_api(self, function, symbol, **kwargs):
+        """
+        Invokes the backend API to retrieve data
+
+        :param function: function/resource to invoke
+        :param symbol: ticker/symbol
+        :param kwargs: additional parameters to pass to the backend
+        :return: response data from the requesr
+        """
         resource = self._resource_mapping[function].format(symbol)
         return self._call_api(resource, kwargs.get(CC.PARAMS, None), kwargs.get(CC.HEADERS, None), **kwargs)
 
     def is_fallback_code(self, response):
+        """
+        Checks the HTTP error code against the list of fallback codes specified in the documentation
+
+        :param response: HTTP response
+        :return: true if the error code exists in the fallback code list
+        """
         if response.status_code in self._config[DC.HTTP_FALLBACK_CODE_LIST]:
             return True
         else:
@@ -125,15 +146,20 @@ class DataSource(object):
         if not config.get(DC.IS_LIBRARY) and not config.get(DC.API_BASE_URL):
             raise TypeError("Base Url is required when data source is not a library")
 
-        # Set authentication token from environment variable if auth token is not included in the config
-        if config.get(DC.IS_AUTHENTICATED) and not (
-                config.get(DC.AUTH_TOKEN) and
-                isinstance(config.get(DC.AUTH_TOKEN), str)):
-            raise ValueError("API Authentication token is a required field and is missing in configuration")
+        if config.get(DC.IS_AUTHENTICATED):
+            tok = config.get(DC.AUTH_TOKEN)
+            if not (tok and isinstance(tok, str)):
+                raise ValueError("API Authentication token is a required field and is missing in configuration")
+            elif config.get(DC.AUTH_TOKEN).startswith(DC.ENV_VARIABLE_PREFIX):
+                tok = os.environ.get(tok[len(DC.ENV_VARIABLE_PREFIX):])
+                if not (tok and isinstance(tok, str)):
+                    raise ValueError(f"Auth token cannot be found in {tok[len(DC.ENV_VARIABLE_PREFIX):]} "
+                                     f"environment variable")
+                else:
+                    config[DC.AUTH_TOKEN] = tok
 
 
 class IEXCloud(DataSource, metaclass=util.Singleton):
-
     __IEX_ENVIRONMENTS = ("sandbox", "production")
 
     __IEX_VALID_VERSIONS = (
@@ -156,6 +182,7 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
         :param config: IEX Cloud configuration
         :raises ValueError when invalid value contains in a config parameter
         :raises TypeError when value is present with an incorrect type
+        :raises ValueError when incorrect value is present
         """
         if not config or not isinstance(config, dict):
             raise TypeError("Configuration object is empty or not a required type")
@@ -164,10 +191,22 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
                 DC.API_BASE_URL), dict):
             raise TypeError("IEX Cloud API base url is required and should be a dict")
 
-        if not config.get(DC.AUTH_TOKEN):
+        auth_token = config.get(DC.AUTH_TOKEN)
+        if not auth_token or not isinstance(auth_token, dict):
             raise ValueError("Authentication token is required to connect with IEX Cloud API")
+        else:
+            for env in IEXCloud.__IEX_ENVIRONMENTS:
+                tok = auth_token[env]
+                if tok is not None and tok.startswith(DC.ENV_VARIABLE_PREFIX):
+                    tok = os.environ.get(tok[len(DC.ENV_VARIABLE_PREFIX):])
+                    if not tok:
+                        log.warning(f"Auth token for {env} is not provided.")
+                        del auth_token[env]
+                    else:
+                        # todo: validate starts from auth token
+                        auth_token[env] = tok
 
-        if not config.get(DC.API_ENVIRONMENT) or config.get(DC.API_ENVIRONMENT) not\
+        if not config.get(DC.API_ENVIRONMENT) or config.get(DC.API_ENVIRONMENT) not \
                 in IEXCloud.__IEX_ENVIRONMENTS:
             log.warning(f"Provided environment {DC.API_ENVIRONMENT} is invalid. Default environment "
                         f"{IEXCloud.__IEX_ENVIRONMENTS[0]} will be used")
@@ -202,7 +241,6 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
 
 
 class AlphaVantage(DataSource, metaclass=util.Singleton):
-
     __apikey: str = "apikey"
     __function: str = "function"
 

@@ -30,8 +30,11 @@ def read_app_config(path: str = None, override_config: bool = True):
     """
     global __APP_CONFIG
 
-    if not path or not Path(path).exists():
-        path = Path(__file__).resolve().parent.joinpath('conf', 'config.yaml').resolve()
+    if not override_config and __APP_CONFIG is not None:
+        return __APP_CONFIG
+
+    if not (path and Path(path).exists()):
+        path = Path(__file__).resolve().parent.parent.joinpath('conf', 'config.yaml').resolve()
 
     with open(path) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
@@ -76,6 +79,8 @@ class DataSourceConstants(object):
     DEFAULT_FALLBACK_DATASOURCE: str = "defaultFallbackDatasource"
 
     HTTP_FALLBACK_CODE_LIST: str = "httpFallbackCodes"
+
+    ENV_VARIABLE_PREFIX: str = "env."
 
 
 class CommonConstants(object):

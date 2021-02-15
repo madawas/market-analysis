@@ -17,7 +17,7 @@ __version__ = "0.0.1"
 
 
 from .ticker import Ticker
-from . import datasource
+from .datasource import DataSource
 from . import util
 
-__all__ = ['Ticker']
+__all__ = ['Ticker', 'DataSource']
