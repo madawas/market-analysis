@@ -9,9 +9,9 @@ datasources:
       sandbox: "https://sandbox.iexapis.com"
       production: "https://cloud.iexapis.com"
     authToken:
-      sandbox: "IEX_SANDBOX_TOKEN"
-      production: "IEX_PROD_TOKEN"
-    environment: "sandbox"
+      sandbox: "env.IEX_SANDBOX_TOKEN"
+      production: "env.IEX_PROD_TOKEN"
+    environment: "env.IEX_ENVIRONMENT"
     version: "stable"
     resourceMapping:
       summary: "/stock/{}/stats"
@@ -27,7 +27,7 @@ datasources:
     isLibrary: False
     isAuthenticated: True
     baseUrl: "https://www.alphavantage.co/query"
-    authToken: "AV_TOKEN"
+    authToken: "env.AV_TOKEN"
     resourceMapping:
       summary: "OVERVIEW"
   - name: "YahooFinance"
