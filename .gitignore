@@ -58,3 +58,8 @@ venv.bak/
 
 # PyCharm Configs
 .idea
+
+# Other files
+.coverage
+.pytest_cache
+main.py

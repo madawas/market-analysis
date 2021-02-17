@@ -36,15 +36,15 @@ setup(
     ],
     packages=find_packages(exclude=["tests", "tests.*"]),
     long_description=read("README.rst"),
-    install_rqquires=[
+    install_requires=[
         "pyyaml~=5.4.1",
         "requests~=2.25.1",
         "requests-html~=0.10.0",
         "yahoo-fin~=0.8.6"
     ],
     extras_require={
-        "dev": [
-            "pytest~=6.2.2"
+        "test": [
+            "pytest"
         ]
     },
     package_data={
