@@ -46,7 +46,7 @@ def create_datasource(name):
     config = next(filter(lambda x: x['name'] == name, datasource_list), None)
 
     if not config:
-        return ValueError(f"Unable to find a configuration to a datasource with name: {name}")
+        raise ValueError(f"Unable to find a configuration to a datasource with name: {name}")
 
     try:
         # Check if a class from the given name exists and create an object from that
