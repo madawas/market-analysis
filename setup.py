@@ -44,11 +44,12 @@ setup(
     ],
     extras_require={
         "test": [
-            "pytest"
+            "pytest",
+            "pytest-mock"
         ]
     },
     package_data={
-        '': ['LICENSE.txt'],
+        '': ['LICENSE'],
         'conf': ['conf/config.yaml']
     },
     include_package_data=True
