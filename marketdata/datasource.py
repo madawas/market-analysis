@@ -57,15 +57,18 @@ def create_datasource(name):
 
 class DataSource(object):
     """
-    Abstract datasource class for retrieving market data using data providers.
-
-    :param config a dictionary containing configuration values
-    :type config: dict
-    :raises DataSourceException if token is not provided for an authenticated data source
-    :rtype DataSourceException
+    Generic datasource class for retrieving market data using data providers.
     """
 
     def __init__(self, config: dict):
+        """
+        Creates a DataSource instance
+
+        :param config a dictionary containing configuration values
+        :type config: dict
+        :raises DataSourceException if token is not provided for an authenticated data source
+        :rtype DataSourceException
+        """
         try:
             self._validate_config(config)
         except (TypeError, ValueError) as e:
@@ -114,7 +117,7 @@ class DataSource(object):
         :param function: function/resource to invoke
         :param symbol: ticker/symbol
         :param kwargs: additional parameters to pass to the backend
-        :return: response data from the requesr
+        :return: response data from the request
         """
         resource = self._resource_mapping[function].format(symbol)
         return self._call_api(resource, kwargs.get(CC.PARAMS, None), kwargs.get(CC.HEADERS, None), **kwargs)
@@ -151,12 +154,16 @@ class DataSource(object):
             if not (tok and isinstance(tok, str)):
                 raise ValueError("API Authentication token is a required field and is missing in configuration")
             elif config.get(DC.AUTH_TOKEN).startswith(DC.ENV_VARIABLE_PREFIX):
+                # Check if token is provided via env variable
                 tok = os.environ.get(tok[len(DC.ENV_VARIABLE_PREFIX):])
                 if not (tok and isinstance(tok, str)):
+                    # If env variable is empty or not a string
                     raise ValueError(f"Auth token cannot be found in {tok[len(DC.ENV_VARIABLE_PREFIX):]} "
                                      f"environment variable")
                 else:
                     config[DC.AUTH_TOKEN] = tok
+            else:
+                config[DC.AUTH_TOKEN] = tok
 
 
 class IEXCloud(DataSource, metaclass=util.Singleton):
@@ -169,8 +176,6 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
     )
 
     def __init__(self, config: dict):
-        if not config:
-            config = util.read_app_config()
         super().__init__(config)
         self.__version = config.get(DC.API_VERSION)
         self.__default_env = config[DC.API_ENVIRONMENT]
@@ -197,23 +202,27 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
         else:
             for env in IEXCloud.__IEX_ENVIRONMENTS:
                 tok = auth_token[env]
-                if tok is not None and tok.startswith(DC.ENV_VARIABLE_PREFIX):
+                if not tok:
+                    log.warning(f"Auth token for {env} is not provided.")
+                    del auth_token[env]
+                elif tok.startswith(DC.ENV_VARIABLE_PREFIX):
                     tok = os.environ.get(tok[len(DC.ENV_VARIABLE_PREFIX):])
                     if not tok:
                         log.warning(f"Auth token for {env} is not provided.")
                         del auth_token[env]
                     else:
-                        # todo: validate starts from auth token
                         auth_token[env] = tok
+                else:
+                    auth_token[env] = tok
 
-        if not config.get(DC.API_ENVIRONMENT) or config.get(DC.API_ENVIRONMENT) not \
-                in IEXCloud.__IEX_ENVIRONMENTS:
-            log.warning(f"Provided environment {DC.API_ENVIRONMENT} is invalid. Default environment "
-                        f"{IEXCloud.__IEX_ENVIRONMENTS[0]} will be used")
-            config[DC.API_ENVIRONMENT] = IEXCloud.__IEX_ENVIRONMENTS[0]
+        if not auth_token:
+            raise ValueError("Authentication token is not provided for none of the environments")
 
-        if not config.get(DC.API_VERSION):
-            config[DC.API_VERSION] = IEXCloud.__IEX_VALID_VERSIONS[0]
+        IEXCloud.__validate_or_set_default(DC.API_ENVIRONMENT, config.get(DC.API_ENVIRONMENT),
+                                           IEXCloud.__IEX_ENVIRONMENTS[0], IEXCloud.__IEX_ENVIRONMENTS, config)
+
+        IEXCloud.__validate_or_set_default(DC.API_VERSION, config.get(DC.API_VERSION), IEXCloud.__IEX_VALID_VERSIONS[0],
+                                           IEXCloud.__IEX_VALID_VERSIONS, config)
 
     def _prepare_url(self, resource, **kwargs):
         env = kwargs.get(DC.API_ENVIRONMENT, self.__default_env)
@@ -238,6 +247,33 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
 
             resource = self._resource_mapping[function].format(symbol)
             return self._call_api(resource, params, headers, **kwargs)
+
+    @staticmethod
+    def __validate_or_set_default(key: str, value: str, default: str, valid_values: tuple, config: dict):
+        """
+        Validates a given value in config. If the value exist and acceptable, set the value or else set a default value
+
+        :param key: config key
+        :param value: existing value in the config
+        :param default: default value
+        :param valid_values: acceptable value set
+        :param config: configuration
+        """
+        if not value:
+            log.warning(f"{key.capitalize()} is not provided. Default {key} {default} will be used")
+            config[key] = default
+        elif value.startswith(DC.ENV_VARIABLE_PREFIX):
+            val = os.environ.get(value[len(DC.ENV_VARIABLE_PREFIX):])
+            if not val or val not in valid_values:
+                log.warning(f"provided {key} {val} is invalid. Default {key} {default} will be used")
+                config[key] = default
+            else:
+                config[key] = val
+        elif value not in valid_values:
+            log.warning(f"provided {key} {value} is invalid. Default {key} {default} will be used")
+            config[key] = default
+        else:
+            config[key] = value
 
 
 class AlphaVantage(DataSource, metaclass=util.Singleton):

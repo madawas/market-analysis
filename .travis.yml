@@ -11,6 +11,6 @@ before_install:
   - pip install codecov
 install:
   - pip install ".[test]"
-script: py.test --cov=marketdata tests/
+script: pytest --cov=marketdata tests/
 after_success:
   - codecov
