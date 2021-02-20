@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from pathlib import Path
+from collections import OrderedDict
 
 import yaml
 
@@ -52,6 +53,33 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+
+class LRUCache(object):
+    def __init__(self, capacity: int):
+        self.__cache = OrderedDict()
+        self.__capacity = capacity
+
+    @property
+    def capacity(self):
+        return self.__capacity
+
+    @capacity.setter
+    def capacity(self, capacity: int):
+        self.__capacity = capacity
+
+    def get(self, key):
+        if key not in self.__cache:
+            return None
+        else:
+            self.__cache.move_to_end(key)
+            return self.__cache[key]
+
+    def put(self, key, value):
+        self.__cache[key] = value
+        self.__cache.move_to_end(key)
+        if len(self.__cache) > self.capacity:
+            self.__cache.popitem(last=False)
 
 
 class DataSourceConstants(object):

@@ -39,8 +39,7 @@ setup(
     install_requires=[
         "pyyaml~=5.4.1",
         "requests~=2.25.1",
-        "requests-html~=0.10.0",
-        "yahoo-fin~=0.8.6"
+        "yfinance>=0.1.55"
     ],
     extras_require={
         "test": [

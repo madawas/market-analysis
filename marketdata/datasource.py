@@ -16,7 +16,7 @@ import os
 import logging
 import requests
 
-from yahoo_fin import stock_info as yf
+import yfinance as yf
 
 from . import util
 from .exceptions import DataSourceException
@@ -167,6 +167,10 @@ class DataSource(object):
 
 
 class IEXCloud(DataSource, metaclass=util.Singleton):
+    """
+    Data source to fetch data from IEX Could API
+    """
+
     __IEX_ENVIRONMENTS = ("sandbox", "production")
 
     __IEX_VALID_VERSIONS = (
@@ -277,6 +281,10 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
 
 
 class AlphaVantage(DataSource, metaclass=util.Singleton):
+    """
+    Data source to fetch data from Alpha Vantage data API
+    """
+
     __apikey: str = "apikey"
     __function: str = "function"
 
@@ -307,13 +315,25 @@ class AlphaVantage(DataSource, metaclass=util.Singleton):
 
 
 class YahooFinance(DataSource):
+    """
+    Data source which extracts data from Yahoo Finance API. Internally uses yfinance
+    (https://pypi.org/project/yfinance/)
+    """
 
     def __init__(self, config):
         super().__init__(config)
+        cache_capacity = config.get("cacheCapacity", 10)
+        self.__cache = util.LRUCache(cache_capacity)
 
     def _call_api(self, resource, params=None, headers=None, **kwargs):
         function = self._resource_mapping[resource]
-        return getattr(yf, function)(params[CC.SYMBOL])
+        symbol = params[CC.SYMBOL]
+        if self.__cache.get(symbol) is None:
+            tkr = yf.Ticker(symbol)
+            self.__cache.put(symbol, tkr)
+        else:
+            tkr = self.__cache.get(symbol)
+        return getattr(tkr, function)()
 
     def call_api(self, function, symbol, **kwargs):
         if function is None or symbol is None:

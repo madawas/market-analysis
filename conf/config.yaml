@@ -34,4 +34,4 @@ datasources:
     isLibrary: True
     isAuthenticated: False
     resourceMapping:
-      summary: "get_quote_table"
+      summary: "get_info"
