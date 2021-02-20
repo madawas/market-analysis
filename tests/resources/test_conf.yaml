@@ -1,5 +1,5 @@
 ---
-defaultDataSource: "IEXCloud"
+defaultDataSource: "SampleDataSource1"
 defaultFallbackDatasource: "YahooFinance"
 datasources:
   - name: "SampleDataSource1"
@@ -7,6 +7,13 @@ datasources:
     isAuthenticated: True
     baseUrl: "https://generic.com"
     authToken: "GfjMfAwEnYOkpTa0Q8T1zvNcoyoOGf9C"
+    resourceMapping:
+      summary: "/summary/{}"
+    httpFallbackCodes:
+      - 401
+      - 402
+      - 403
+      - 500
   - name: "SampleDataSource2"
     isLibrary: True
     isAuthenticated: False
@@ -23,3 +30,8 @@ datasources:
     isLibrary: False
     isAuthenticated: True
     baseUrl: "https://genericerror2.com"
+  - name: "YahooFinance"
+    isLibrary: True
+    isAuthenticated: False
+    resourceMapping:
+      summary: "get_quote_table"

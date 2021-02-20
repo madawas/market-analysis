@@ -28,7 +28,7 @@ CC = util.CommonConstants
 class Ticker:
     _CONFIG = util.read_app_config()
 
-    def __init__(self, symbol, datasource, fallback_datasource=None):
+    def __init__(self, symbol, datasource=None, fallback_datasource=None):
         self.__symbol = symbol
 
         if not datasource:
@@ -39,6 +39,8 @@ class Ticker:
 
         if not fallback_datasource:
             self.__fallback_datasource = Ticker.__create_datasource(Ticker._CONFIG[DC.DEFAULT_FALLBACK_DATASOURCE])
+        else:
+            self.__fallback_datasource = Ticker.__create_datasource(fallback_datasource)
 
     @property
     def datasource(self):
@@ -47,6 +49,14 @@ class Ticker:
     @datasource.setter
     def datasource(self, datasource):
         self.__datasource = Ticker.__create_datasource(datasource)
+
+    @property
+    def fallback_datasource(self):
+        return self.__fallback_datasource
+
+    @fallback_datasource.setter
+    def fallback_datasource(self, datasource):
+        self.__fallback_datasource = Ticker.__create_datasource(datasource)
 
     @property
     def symbol(self):
@@ -108,6 +118,8 @@ class Ticker:
                 raise MarketDataException(data)
             elif isinstance(data, dict):
                 return data
+        else:
+            return response
 
     def __handle_fallback_request(self, function, **kwargs):
         """
