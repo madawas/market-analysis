@@ -63,5 +63,4 @@ def test_yf_data_source():
     assert isinstance(yf, ds.YahooFinance)
     response = yf.call_api("summary", "aapl")
     assert isinstance(response, dict)
-    assert "1y Target Est" in response
-    assert "Ask" in response
+    assert response["longName"] == "Apple Inc."
