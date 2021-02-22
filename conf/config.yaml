@@ -2,7 +2,8 @@
 defaultDataSource: "IEXCloud"
 defaultFallbackDatasource: "YahooFinance"
 datasources:
-  - name: "IEXCloud"
+  - type: "IEXCloud"
+    name: "IEXCloud"
     isLibrary: False
     isAuthenticated: True
     baseUrl:
@@ -23,14 +24,16 @@ datasources:
       - 429
       - 451
       - 500
-  - name: "AlphaVantage"
+  - type: "AlphaVantage"
+    name: "AlphaVantage"
     isLibrary: False
     isAuthenticated: True
     baseUrl: "https://www.alphavantage.co/query"
     authToken: "env.AV_TOKEN"
     resourceMapping:
       summary: "OVERVIEW"
-  - name: "YahooFinance"
+  - type: "YahooFinance"
+    name: "YahooFinance"
     isLibrary: True
     isAuthenticated: False
     resourceMapping:

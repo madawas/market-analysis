@@ -15,6 +15,7 @@
 import os
 import logging
 import requests
+from weakref import WeakValueDictionary
 
 import yfinance as yf
 
@@ -43,14 +44,13 @@ def create_datasource(name):
         datasource_list = config[DC.DATA_SOURCES_PARENT]
     else:
         raise TypeError("config is not a dict")
-    config = next(filter(lambda x: x['name'] == name, datasource_list), None)
+    config = next(filter(lambda x: x[DC.NAME] == name, datasource_list), None)
 
     if not config:
         raise ValueError(f"Unable to find a configuration to a datasource with name: {name}")
 
     try:
-        # Check if a class from the given name exists and create an object from that
-        return globals()[name](config)
+        return globals()[config[DC.TYPE]](config)
     except KeyError:
         return DataSource(config)
 
@@ -59,12 +59,30 @@ class DataSource(object):
     """
     Generic datasource class for retrieving market data using data providers.
     """
+    _instances = WeakValueDictionary()
+
+    def __new__(cls, config):
+        """
+        Limit the number of instances of the same data source
+
+        :param config: a dictionary containing configuration values of the data source
+        """
+        if not config or not isinstance(config, dict):
+            raise DataSourceException("Configuration object is empty or not a required type")
+
+        existing = DataSource._instances.get(config[DC.NAME])
+        if existing is not None and existing.__class__ is cls:
+            return existing
+        else:
+            new_instance = super().__new__(cls)
+            cls._instances[config[DC.NAME]] = new_instance
+            return new_instance
 
     def __init__(self, config: dict):
         """
         Creates a DataSource instance
 
-        :param config a dictionary containing configuration values
+        :param config a dictionary containing configuration values of the data source
         :type config: dict
         :raises DataSourceException if token is not provided for an authenticated data source
         :rtype DataSourceException
@@ -79,6 +97,7 @@ class DataSource(object):
             self._base_url = config.get(DC.API_BASE_URL)
             self._resource_mapping = config.get(DC.RESOURCES_MAPPING)
             self._config = config
+            DataSource._instances[self.__name] = self
 
     @property
     def name(self):
@@ -142,9 +161,6 @@ class DataSource(object):
         :raises ValueError when invalid value contains in a config parameter
         :raises TypeError when value is present with an incorrect type
         """
-        if not config or not isinstance(config, dict):
-            raise TypeError("Configuration object is empty or not a required type")
-
         # Base URL is required when the data source is not a library
         if not config.get(DC.IS_LIBRARY) and not config.get(DC.API_BASE_URL):
             raise TypeError("Base Url is required when data source is not a library")
@@ -166,7 +182,7 @@ class DataSource(object):
                 config[DC.AUTH_TOKEN] = tok
 
 
-class IEXCloud(DataSource, metaclass=util.Singleton):
+class IEXCloud(DataSource):
     """
     Data source to fetch data from IEX Could API
     """
@@ -193,9 +209,6 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
         :raises TypeError when value is present with an incorrect type
         :raises ValueError when incorrect value is present
         """
-        if not config or not isinstance(config, dict):
-            raise TypeError("Configuration object is empty or not a required type")
-
         if not config.get(DC.API_BASE_URL) and isinstance(config.get(
                 DC.API_BASE_URL), dict):
             raise TypeError("IEX Cloud API base url is required and should be a dict")
@@ -280,7 +293,7 @@ class IEXCloud(DataSource, metaclass=util.Singleton):
             config[key] = value
 
 
-class AlphaVantage(DataSource, metaclass=util.Singleton):
+class AlphaVantage(DataSource):
     """
     Data source to fetch data from Alpha Vantage data API
     """

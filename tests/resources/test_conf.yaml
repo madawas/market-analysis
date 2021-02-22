@@ -3,6 +3,7 @@ defaultDataSource: "SampleDataSource1"
 defaultFallbackDatasource: "YahooFinance"
 datasources:
   - name: "SampleDataSource1"
+    type: "DataSource"
     isLibrary: False
     isAuthenticated: True
     baseUrl: "https://generic.com"
@@ -15,22 +16,27 @@ datasources:
       - 403
       - 500
   - name: "SampleDataSource2"
+    type: "DataSource"
     isLibrary: True
     isAuthenticated: False
   - name: "SampleDataSource3"
+    type: "DataSource"
     isLibrary: False
     isAuthenticated: False
     baseUrl: "https://generic3.com"
     authToken: "RU0tUAws7z2uyFOFkB8I1LkWm7HlEpiH"
   - name: "GenericDataSourceError1"
+    type: "DataSource"
     isLibrary: False
     isAuthenticated: True
     authToken: "lXJjmz9UfHTTaQnHpgmncqHuFvH43vGx"
   - name: "GenericDataSourceError2"
+    type: "DataSource"
     isLibrary: False
     isAuthenticated: True
     baseUrl: "https://genericerror2.com"
   - name: "YahooFinance"
+    type: "YahooFinance"
     isLibrary: True
     isAuthenticated: False
     resourceMapping:
