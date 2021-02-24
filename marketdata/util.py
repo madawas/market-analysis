@@ -14,6 +14,7 @@
 
 from pathlib import Path
 from collections import OrderedDict
+from datetime import datetime, timedelta
 
 import yaml
 
@@ -47,9 +48,19 @@ def read_app_config(path: str = None, override_config: bool = True):
 
 
 class LRUCache(object):
-    def __init__(self, capacity: int):
+    """
+    LRU Cache with TTL support
+    """
+    def __init__(self, capacity: int = 50, ttl: int = 900):
+        """
+        Initializes a cache object
+
+        :param capacity: cache capacity. default 50
+        :param ttl: expiry period. default 900s
+        """
         self.__cache = OrderedDict()
         self.__capacity = capacity
+        self.__ttl = ttl
 
     @property
     def capacity(self):
@@ -59,16 +70,55 @@ class LRUCache(object):
     def capacity(self, capacity: int):
         self.__capacity = capacity
 
-    def get(self, key):
-        if key not in self.__cache:
-            return None
-        else:
-            self.__cache.move_to_end(key)
-            return self.__cache[key]
+    @property
+    def ttl(self):
+        return self.__ttl
 
-    def put(self, key, value):
-        self.__cache[key] = value
+    @ttl.setter
+    def ttl(self, ttl: int):
+        self.__ttl = ttl
+
+    def __contains__(self, key):
+        if key in self.__cache and self.__cache[key] is not None and self.__cache[key]["expiry"] > datetime.now():
+            return True
+        return False
+
+    def get(self, key):
+        """
+        Retrieve item from cache
+
+        :param key: cache key
+        :return: item if exists and not expired
+        """
+        if key in self.__cache:
+            self.__cache.move_to_end(key)
+            cache_val = self.__cache[key]
+            if cache_val["expiry"] < datetime.now():
+                del self.__cache[key]
+            else:
+                return cache_val["value"]
+        return None
+
+    def put(self, key, value, ttl: int = -1):
+        """
+        Puts an item in to cache
+
+        :param key: cache key
+        :param value: value
+        :param ttl: optional ttl value to override default ttl value
+        """
+        if ttl != -1:
+            ttl = self.__ttl
+
+        expires = datetime.now() + timedelta(seconds=ttl)
+
+        cache_val = {
+            "value": value,
+            "expiry": expires
+        }
+        self.__cache[key] = cache_val
         self.__cache.move_to_end(key)
+
         if len(self.__cache) > self.capacity:
             self.__cache.popitem(last=False)
 
@@ -102,6 +152,10 @@ class DataSourceConstants(object):
     HTTP_FALLBACK_CODE_LIST: str = "httpFallbackCodes"
 
     ENV_VARIABLE_PREFIX: str = "env."
+
+    CACHE_CAPACITY: str = "cacheCapacity"
+
+    CACHE_EXPIRY: str = "cacheExpiry"
 
 
 class CommonConstants(object):

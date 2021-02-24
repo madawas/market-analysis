@@ -97,7 +97,6 @@ class DataSource(object):
             self._base_url = config.get(DC.API_BASE_URL)
             self._resource_mapping = config.get(DC.RESOURCES_MAPPING)
             self._config = config
-            DataSource._instances[self.__name] = self
 
     @property
     def name(self):
@@ -335,8 +334,13 @@ class YahooFinance(DataSource):
 
     def __init__(self, config):
         super().__init__(config)
-        cache_capacity = config.get("cacheCapacity", 10)
-        self.__cache = util.LRUCache(cache_capacity)
+        cache_capacity = config.get(DC.CACHE_CAPACITY, 10)
+        cache_expiry = config.get(DC.CACHE_EXPIRY)
+
+        if cache_expiry:
+            self.__cache = util.LRUCache(cache_capacity, cache_expiry)
+        else:
+            self.__cache = util.LRUCache(cache_capacity)
 
     def _call_api(self, resource, params=None, headers=None, **kwargs):
         function = self._resource_mapping[resource]
