@@ -139,6 +139,8 @@ class DataSourceConstants(object):
 
     API_BASE_URL: str = "baseUrl"
 
+    DATASOURCE: str = "datasource"
+
     API_VERSION: str = "version"
 
     API_ENVIRONMENT: str = "environment"

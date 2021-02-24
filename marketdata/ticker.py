@@ -62,64 +62,53 @@ class Ticker:
     def symbol(self):
         return self.__symbol
 
-    def get_summary(self, datasource: str = None, environment: str = None, token: str = None, version: str = None):
+    def get_summary(self, **kwargs):
         """
         Get summary of the given ticker symbol
 
-        :param datasource: overrides the data source specified when creating the :Ticker instance. [optional]
-        :type datasource: str
-        :param environment: overrides the data source/API environment specified when creating the :py:class:Ticker
-                instance. [optional]
-        :type environment: str
-        :param version: overrides the data source/API version specified when creating the Ticker instance. [optional]
-        :type version: str
-        :param token: overrides the authentication token specified when creating the :py:class:Ticker instance.
-                [optional]
-        :type token: str
-        :return:
+        :param kwargs optional parameters that can be passed
+               datasource: overrides the data source specified when creating the :Ticker instance. [str]
+               environment: overrides the data source/API environment specified when creating the :py:class:Ticker
+                            instance. [str]
+               version: overrides the data source/API version specified when creating the Ticker instance. [str]
+               token: overrides the authentication token specified when creating the :py:class:Ticker instance. [str]
+        :return: ticker summary
         """
-        args_dict = {}
-        local_ds = self.__datasource if datasource is None else Ticker.__create_datasource(datasource)
+        local_datasource = self.__get_local_datasource(**kwargs)
 
-        if environment is not None:
-            args_dict[DC.API_ENVIRONMENT] = environment
+        return self.__handle_request(local_datasource, CC.STOCK_SUMMARY, **kwargs)
 
-        if version is not None:
-            args_dict[DC.API_VERSION] = version
+    def get_historical_data(self):
+        pass
 
-        if token is not None:
-            args_dict[CC.TOKEN] = token
-
-        return self.__handle_request(local_ds, CC.STOCK_SUMMARY, **args_dict)
-
-    def __handle_request(self, datasource, function, **kwargs):
+    def __handle_request(self, local_datasource, function, **kwargs):
         """
         Handles the request to fetch data
 
-        :param datasource: overrides the data source specified when creating the :Ticker instance. [optional]
-        :type datasource: :py:class:datasource.DataSource
+        :param local_datasource: overrides the data source specified when creating the :Ticker instance. [optional]
+        :type local_datasource: :py:class:datasource.DataSource
         :param function: function/endpoint/data to retrieve. E.g. summary, balance_sheet
         :type function: str
         :param kwargs: any other data source related parameters
         :return:
         """
         try:
-            response = datasource.call_api(function, self.symbol, **kwargs)
+            response = local_datasource.call_api(function, self.symbol, **kwargs)
         except requests.exceptions.RequestException as e:
             log.error(f"Error occurred while attempting to fetch data. HTTP Status = {e.response.status_code},"
                       f"Message = {e.response.text}")
             response = self.__handle_fallback_request(function, **kwargs)
 
         if isinstance(response, requests.models.Response):
-            is_fallback, data = Ticker.__is_fallback(datasource, response)
-            if is_fallback:
-                return self.__handle_fallback_request(function, **kwargs)
-            elif isinstance(data, str):
-                raise MarketDataException(data)
-            elif isinstance(data, dict):
-                return data
-        else:
-            return response
+            if response.status_code is not requests.codes.ok:
+                is_fallback = Ticker.__is_fallback(local_datasource, response)
+                if is_fallback:
+                    return self.__handle_fallback_request(function, **kwargs)
+                else:
+                    raise MarketDataException(f"Unrecoverable error occurred while attempting to fetch {self.symbol} "
+                                              f"{function}. HTTP ERROR: {response.status_code}, {response.content}")
+            return response.json()
+        return response
 
     def __handle_fallback_request(self, function, **kwargs):
         """
@@ -136,6 +125,10 @@ class Ticker:
         except IOError as e:
             raise MarketDataException("Error occurred while fetching data", e)
 
+    def __get_local_datasource(self, **kwargs):
+        datasource = kwargs.get(DC.DATASOURCE)
+        return self.__datasource if datasource is None else Ticker.__create_datasource(datasource)
+
     @staticmethod
     def __is_fallback(datasource, response):
         """
@@ -143,20 +136,14 @@ class Ticker:
 
         :param datasource: current datasource
         :param response: received response
-        :return: :bool of whether to try again and data
+        :return: :bool of whether to try again
         """
-        if response.status_code is requests.codes.ok:
-            return False, response.json()
+        if datasource.is_fallback_code(response):
+            log.warning(f"Response returned with status: {response.status_code}, msg: {response.text} and "
+                        f"retrying again with fallback data source")
+            return True
         else:
-            if datasource.is_fallback_code(response):
-                log.warning(f"Response returned with status: {response.status_code}, msg: {response.text} and "
-                            f"retrying again with fallback data source")
-                return True, None
-            else:
-                msg = f"Error occurred while retrieving data: HTTP Status = {response.status_code}, Message = " \
-                      f"{response.text}"
-                log.error(msg)
-                return False, msg
+            return False
 
     @staticmethod
     def __create_datasource(datasource):
