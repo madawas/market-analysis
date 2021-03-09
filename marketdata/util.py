@@ -168,6 +168,8 @@ class CommonConstants(object):
 
     STOCK_SUMMARY: str = "summary"
 
+    SUMMARY_ADVANCED: str = "summary_advanced"
+
     TOKEN: str = "token"
 
     SYMBOL: str = "symbol"

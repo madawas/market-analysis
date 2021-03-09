@@ -16,6 +16,7 @@ datasources:
     version: "stable"
     resourceMapping:
       summary: "/stock/{}/stats"
+      summary_advanced: "/stock/{}/advanced-stats"
     httpFallbackCodes:
       - 401
       - 402

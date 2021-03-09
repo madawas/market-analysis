@@ -75,6 +75,8 @@ class Ticker:
         :return: ticker summary
         """
         local_datasource = self.__get_local_datasource(**kwargs)
+        if isinstance(local_datasource, ds.IEXCloud) and kwargs.get("advanced-stats") is True:
+            return self.__handle_request(local_datasource, CC.SUMMARY_ADVANCED, **kwargs)
 
         return self.__handle_request(local_datasource, CC.STOCK_SUMMARY, **kwargs)
 
